@@ -139,7 +139,7 @@
 
   .pickbar{padding:0 13px 14px}
   .seg{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line-soft);border-radius:9px;overflow:hidden}
-  .seg button{appearance:none;border:0;background:transparent;color:var(--muted);cursor:pointer;font-family:var(--mono);font-size:13px;font-weight:600;padding:10px 0;transition:background .15s,color .15s}
+  .seg button{direction:ltr;unicode-bidi:isolate;appearance:none;border:0;background:transparent;color:var(--muted);cursor:pointer;font-family:var(--mono);font-size:13px;font-weight:600;padding:10px 0;transition:background .15s,color .15s}
   .seg button + button{border-inline-start:1px solid var(--line-soft)}
   .seg button:nth-child(3){border-inline-start:2px dashed var(--line)}
   .seg button:hover{color:var(--chalk);background:rgba(237,244,241,.08)}
@@ -262,6 +262,7 @@
   var sha = null;          // sha آخر نسخة قرأناها من GitHub
   var pending = false;     // تغييرات لم تُرفع بعد
   var token = "";
+  var lastSync = 0;
 
   var app = document.getElementById("app");
   var banner = document.getElementById("banner");
@@ -278,6 +279,18 @@
   function setSync(kind, text){
     syncEl.className = "sync " + (kind || "");
     syncEl.querySelector("span").textContent = text;
+  }
+  function relTime(ts){
+    var d = Math.floor((Date.now() - ts) / 1000);
+    if (d < 45) return "حُدِّث الآن";
+    var m = Math.round(d / 60);
+    if (m < 60) return "آخر تحديث قبل " + (m === 1 ? "دقيقة" : m === 2 ? "دقيقتين" : m < 11 ? m + " دقائق" : m + " دقيقة");
+    var h = Math.round(m / 60);
+    return "آخر تحديث قبل " + (h === 1 ? "ساعة" : h === 2 ? "ساعتين" : h < 11 ? h + " ساعات" : h + " ساعة");
+  }
+  function markSynced(){
+    lastSync = Date.now();
+    setSync("ok", relTime(lastSync));
   }
   function lsGet(k){ try { return window.localStorage.getItem(k); } catch(e){ return null; } }
   function lsSet(k,v){ try { window.localStorage.setItem(k,v); } catch(e){} }
@@ -379,10 +392,11 @@
     return fetch(API + "?ref=" + GH.branch + "&t=" + Date.now(), {
       headers: { "Accept": "application/vnd.github+json" }, cache: "no-store"
     }).then(function(r){
-      if (r.status === 404){ sha = null; return null; }        // الملف ما أُنشئ بعد
+      if (r.status === 404){ sha = null; lastSync = Date.now(); return null; }   // الملف ما أُنشئ بعد
       if (!r.ok) throw new Error("HTTP " + r.status);
       return r.json();
     }).then(function(j){
+      lastSync = Date.now();
       if (!j) return null;
       sha = j.sha;
       return JSON.parse(b64dec(j.content));
@@ -530,7 +544,7 @@
       b.disabled = true; b.textContent = "…";
       pull().then(function(d){
         applyData(d);
-        setSync("ok", "محدَّث الآن");
+        markSynced();
         render();
       }).catch(function(){
         b.disabled = false; b.textContent = "تحديث الآن";
@@ -575,7 +589,6 @@
         var rh = el("div","round-head");
         rh.appendChild(el("span","n", String(r)));
         rh.appendChild(el("span","t","الجولة " + r));
-        rh.appendChild(el("span","s", ms.filter(function(m){ return read(m).done; }).length + "/" + ms.length));
         frag.appendChild(rh);
         var grid = el("div","courts");
         ms.forEach(function(m){
@@ -614,9 +627,8 @@
     });
     thead.appendChild(trh); table.appendChild(thead);
     var tb = el("tbody");
-    var top = rows.length && rows[0].pts > 0 ? rows[0].pts : -1;
     rows.forEach(function(row, i){
-      var tr = el("tr", row.pts === top && top > 0 ? "lead" : "");
+      var tr = el("tr", i === 0 && row.pts > 0 ? "lead" : "");
       tr.appendChild(el("td","rank", String(i+1)));
       tr.appendChild(el("td","name", row.name));
       tr.appendChild(el("td",null, String(row.played)));
@@ -833,7 +845,6 @@
           var rh = el("div","round-head");
           rh.appendChild(el("span","n", String(r)));
           rh.appendChild(el("span","t","الجولة " + r));
-          rh.appendChild(el("span","s", ms.filter(function(m){ return read(m).done; }).length + "/" + ms.length));
           frag.appendChild(rh);
           var g2 = el("div","courts");
           ms.forEach(function(m){ g2.appendChild(editCard(m)); });
@@ -883,7 +894,7 @@
     [["a",1],["a",0],["b",0],["b",1]].forEach(function(o){
       var side = o[0], type = o[1];
       var on = r.done && m.res.w === side && m.res.t === type;
-      var b = el("button", null, "2-" + type);
+      var b = el("button", null, side === "a" ? (type + "-2") : ("2-" + type));
       b.type = "button";
       b.setAttribute("aria-pressed", String(on));
       b.setAttribute("aria-label", "فوز " + nameOf(m[side][0]) + " و" + nameOf(m[side][1]) + " بنتيجة 2-" + type);
@@ -936,9 +947,14 @@
   setInterval(function(){
     if (unlocked || pending) return;
     pull().then(function(d){
-      if (applyData(d) && view !== "admin"){ render(); setSync("ok", "محدَّث"); }
+      markSynced();
+      if (applyData(d) && view !== "admin") render();
     }).catch(function(){});
   }, POLL_MS);
+
+  setInterval(function(){
+    if (lastSync && syncEl.classList.contains("ok")) setSync("ok", relTime(lastSync));
+  }, 30000);
 
   window.addEventListener("online", function(){ if (pending) push(); });
 
@@ -950,7 +966,7 @@
       var local = lsGet(LOCAL_KEY);
       if (local) applyData(JSON.parse(local));
     }
-    setSync("", state.vault ? "متصل" : "بانتظار التجهيز");
+    if (lastSync) markSynced(); else setSync("", "بانتظار التجهيز");
   }).catch(function(){
     var local = lsGet(LOCAL_KEY);
     if (local) { try { applyData(JSON.parse(local)); } catch(e){} }
