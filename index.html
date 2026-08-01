@@ -1,93 +1,3 @@
-
-Claude finished the response
-ورني الكود خلينا نعدله سوا
-
-
-التفكير في مراجعة وتعديل الكود معاً
-التفكير في مراجعة وتعديل الكود معاً
-تمام. هذي القطع الثلاث المسؤولة عن جدول الترتيب:
-
-١) عناوين الأعمدة — السطر ٦١٤
-
-js
-[["#",""],["اللاعب","name"],["لعب",""],["فاز",""],["خسر",""],["جولات (ف/خ)",""],["النقاط",""]]
-٢) بناء صف اللاعب — السطور ٦٢١‑٦٣٤
-
-js
-rows.forEach(function(row, i){
-  var tr = el("tr", row.pts === top && top > 0 ? "lead" : "");
-  tr.appendChild(el("td","rank", String(i+1)));      // الترتيب
-  tr.appendChild(el("td","name", row.name));         // الاسم
-  tr.appendChild(el("td",null, String(row.played))); // لعب
-  tr.appendChild(el("td",null, String(row.w)));      // فاز (مباريات)
-  tr.appendChild(el("td",null, String(row.l)));      // خسر (مباريات)
-
-  var tdS = el("td","sets");                          // ← عمود الجولات
-  tdS.appendChild(el("span","n", String(row.sw)));    // جولات فاز
-  tdS.appendChild(el("span","sep","/"));
-  tdS.appendChild(el("span","n", String(row.sl)));    // جولات خسر
-  tr.appendChild(tdS);
-
-  tr.appendChild(el("td","pts", String(row.pts)));   // النقاط
-  tb.appendChild(tr);
-});
-٣) التنسيق — السطور ١٥٩‑١٦١
-
-css
-.table td.sets{direction:rtl}
-.table td.sets .n{unicode-bidi:isolate;display:inline-block}
-.table td.sets .sep{color:var(--line-soft);margin:0 4px;display:inline-block}
-آخر تعديل سويته: قسّمت الرقمين إلى عنصرين منفصلين وخليت اتجاه الخانة rtl، عشان جولات الفوز تطلع على اليمين — أول ما تقع عليه عينك وأنت تقرأ عربي. قبلها كانا نصاً واحداً "14-4" والمتصفح يعامله كرقم واحد يُقرأ من اليسار، فيطلع الخاسر أولاً في عينك. هذي كانت المشكلة.
-
-وش نعدل؟ لو حاب:
-
-أعكسها — جولات الخسارة يمين والفوز يسار: بدّل row.sw بـ row.sl في السطرين ٦٢٨ و ٦٣٠.
-أفصلها لعمودين مستقلين جولات ف و جولات خ، أوضح وما فيه أي لبس.
-أحط فرق الجولات بدل الاثنين، مثلاً +10، أخصر وهو المعيار اللي يُرتَّب عليه فعلاً عند التساوي.
-أغيّر الفاصل من / إلى شي ثانٍ، أو أخليه ملوّناً.
-قل لي أي واحدة، أو صف لي الشكل اللي في بالك وأعدّله على طول.
-
-
-<!DOCTYPE html> <html lang="ar" dir="rtl"> <head> <meta charset="utf-8"> <meta name="viewport" content="width=device-width, initial-scale=1"> <title>بطولة الشقة للبادل</title> <link rel="preconnect" href="https://fonts.googleapis.com"> <link rel="preconnect" href="https://fonts.gstatic.com" c
-
-pasted
-
-حدث الكود اللي عندك بهذا وخلينا نشوفه
-
-
-حدّد التعديلات الرئيسية وخطّط لتطبيقها بكفاءة
-حدّد التعديلات الرئيسية وخطّط لتطبيقها بكفاءة
-حدّثت نسختي بنسختك بالكامل. صرنا على نفس الملف الحين — العنوان "بطولة الشقة للبادل"، وحلّك لعمود الجولات، وترتيب الخيارات الجديد.
-
-وحلّك للجولات شغّال فعلاً، وسبب نجاحه ألطف مما يبدو: كتبت النص sl-sw (خسر أولاً) لكن مع direction:ltr المتصفح يعرضه من اليسار، فالرقم الأيمن — أول ما تقع عليه عين القارئ العربي — يصير جولات الفوز، مطابقاً لعنوان (ف/خ). تراجعت عن تعديلي وأبقيت طريقتك لأنها أبسط: خانة وحدة بدل ثلاثة عناصر.
-
-الملف فوق جاهز للفتح والمعاينة. وش نشتغل عليه؟ لو تبي مكان أبدأ منه، هذي أشياء لاحظتها وأنا أقرأ:
-
-١. الشباب ما يعرفون آخر تحديث. الترتيب يتحدّث كل دقيقتين، بس ما فيه شي يقول "آخر نتيجة سُجّلت قبل ٣ دقائق". سطر صغير تحت العنوان يفيد.
-
-٢. المتصدّر ما له حضور. الصف الأول مميّز بنقطة صغيرة فقط. لو هذي الصفحة الرئيسية اللي تُفتح في القروب، تستاهل بطاقة فوق الجدول: اسم المتصدّر ونقاطه بخط كبير.
-
-٣. زر مشاركة صورة الترتيب. يحوّل الجدول لصورة تنشرها في الواتساب مباشرة، بدل سكرين شوت مقصوص.
-
-٤. "الجولة الحالية" في المباريات. بدل ما تنزل بين ١٤ مباراة، الصفحة تفتح على أول جولة فيها مباراة بدون نتيجة.
-
-أو قل لي أنت وش يضايقك في الاستخدام وأعدّله.
-
-
-Index
-Code · HTML 
-
-Want to be notified when Claude responds?
-
-
-
-
-
-
-Claude is AI and can make mistakes. Please double-check responses.
-
-
-Index · HTML
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -97,7 +7,7 @@ Index · HTML
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
- 
+
 <style>
   :root{
     --court:#0C3654;
@@ -130,7 +40,7 @@ Index · HTML
     min-height:100vh;
   }
   .wrap{max-width:940px;margin:0 auto;padding:0 16px 72px}
- 
+
   /* ---------- header ---------- */
   .topbar{position:sticky;top:0;z-index:20;background:rgba(8,40,63,.9);backdrop-filter:blur(10px);border-bottom:2px solid var(--line)}
   .topbar-in{max-width:940px;margin:0 auto;padding:14px 16px 0;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
@@ -146,7 +56,7 @@ Index · HTML
   .ball:active{transform:scale(.94)}
   .ball:focus-visible{outline:2px solid var(--ball);outline-offset:3px}
   .ball.live{box-shadow:0 0 0 1.5px rgba(0,0,0,.25) inset, 0 0 0 3px rgba(217,242,75,.28)}
- 
+
   .sync{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap}
   .sync b{width:6px;height:6px;border-radius:50%;background:var(--muted);display:inline-block;flex:none}
   .sync.ok b{background:var(--ball)}
@@ -155,7 +65,7 @@ Index · HTML
   .sync.err b{background:var(--alert)}
   .sync.err{color:#FFC9C0}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
- 
+
   nav{display:flex;gap:2px;width:100%;margin-top:12px}
   nav button{
     flex:1;appearance:none;background:transparent;border:0;border-bottom:3px solid transparent;
@@ -165,7 +75,7 @@ Index · HTML
   nav button:hover{color:var(--chalk)}
   nav button[aria-selected="true"]{color:var(--ball);border-bottom-color:var(--ball)}
   nav button:focus-visible{outline:2px solid var(--ball);outline-offset:-4px;border-radius:6px}
- 
+
   /* ---------- generic ---------- */
   h2.sec{font-family:var(--display);font-weight:600;font-size:15px;margin:26px 0 12px;display:flex;align-items:center;gap:10px;color:var(--chalk)}
   h2.sec::after{content:"";flex:1;height:1px;background:var(--line-soft)}
@@ -189,28 +99,28 @@ Index · HTML
   .row{display:flex;flex-wrap:wrap;gap:10px}
   .headline{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 14px}
   .headline .hint{margin:0}
- 
+
   .empty{text-align:center;padding:52px 20px;border:2px dashed var(--line-soft);border-radius:var(--r);color:var(--muted);margin-top:24px}
   .empty strong{display:block;font-family:var(--display);color:var(--chalk);font-size:16px;margin-bottom:6px}
- 
+
   #banner{display:none;margin:14px 0 0;padding:10px 14px;border-radius:10px;font-size:13px;background:rgba(242,112,94,.14);border:1px solid rgba(242,112,94,.45);color:#FFD3CB}
   #banner.on{display:block}
- 
+
   /* ---------- rounds ---------- */
   .round-head{display:flex;align-items:baseline;gap:12px;margin:28px 0 12px}
   .round-head .n{font-family:var(--mono);font-size:12px;color:var(--court-deep);background:var(--ball);padding:2px 9px;border-radius:999px;font-weight:600}
   .round-head .t{font-family:var(--display);font-weight:600;font-size:15px}
   .round-head .s{font-size:12px;color:var(--muted);margin-inline-start:auto;font-family:var(--mono)}
- 
+
   .courts{display:grid;grid-template-columns:1fr 1fr;gap:14px}
   @media(max-width:720px){.courts{grid-template-columns:1fr}}
- 
+
   .match{background:var(--panel);border-radius:var(--r);overflow:hidden;border:1px solid var(--line-soft)}
   .match-top{display:flex;align-items:center;gap:8px;padding:9px 13px;background:rgba(8,40,63,.45);border-bottom:1px solid var(--line-soft)}
   .court-tag{font-family:var(--mono);font-size:11px;letter-spacing:.5px;color:var(--muted)}
   .status{margin-inline-start:auto;font-size:11px;font-family:var(--mono);color:var(--muted)}
   .final{margin-inline-start:auto;font-family:var(--mono);font-size:13px;font-weight:600;color:var(--court-deep);background:var(--ball);padding:1px 9px;border-radius:999px;letter-spacing:.5px}
- 
+
   .court{position:relative;display:grid;grid-template-columns:1fr 1fr;margin:14px 13px;border:2px solid var(--line);border-radius:4px;background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,0))}
   .court::before{content:"";position:absolute;inset:0;right:50%;width:0;border-inline-end:2px dashed var(--line)}
   .court.pick{margin-bottom:10px}
@@ -226,7 +136,7 @@ Index · HTML
   button.side.win:hover{background:rgba(217,242,75,.16)}
   button.side:focus-visible{outline:2px solid var(--ball);outline-offset:-3px}
   button.side .tap{font-family:var(--mono);font-size:10.5px;color:var(--muted);margin-top:6px;opacity:.75}
- 
+
   .pickbar{padding:0 13px 14px}
   .seg{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line-soft);border-radius:9px;overflow:hidden}
   .seg button{appearance:none;border:0;background:transparent;color:var(--muted);cursor:pointer;font-family:var(--mono);font-size:13px;font-weight:600;padding:10px 0;transition:background .15s,color .15s}
@@ -238,7 +148,7 @@ Index · HTML
   .clear{display:block;margin:10px auto 0;appearance:none;background:transparent;border:0;color:var(--muted);cursor:pointer;font-family:var(--body);font-size:12px;padding:4px 8px;text-decoration:underline;text-underline-offset:3px}
   .clear:hover{color:var(--alert)}
   .clear:focus-visible{outline:2px solid var(--ball);outline-offset:2px;border-radius:6px}
- 
+
   /* ---------- standings ---------- */
   .table{width:100%;border-collapse:collapse;font-size:14px}
   .table thead th{font-family:var(--mono);font-size:10.5px;font-weight:600;letter-spacing:.6px;color:var(--muted);text-align:center;padding:0 6px 9px;border-bottom:2px solid var(--line);white-space:nowrap}
@@ -254,7 +164,7 @@ Index · HTML
   .legend ul{list-style:none;padding:0;margin:10px 0 0;display:grid;gap:7px}
   .legend li{display:flex;align-items:center;gap:10px}
   .legend .k{font-family:var(--mono);font-size:11px;background:rgba(237,244,241,.08);border:1px solid var(--line-soft);padding:2px 8px;border-radius:6px;color:var(--chalk);min-width:74px;text-align:center}
- 
+
   /* ---------- gate + admin ---------- */
   .gate{max-width:360px;margin:48px auto 0;text-align:center}
   .gate .mark{width:40px;height:40px;border-radius:50%;margin:0 auto 18px;background:radial-gradient(circle at 32% 30%, #EAFF7A, var(--ball) 55%, var(--ball-deep))}
@@ -264,7 +174,7 @@ Index · HTML
   .code:focus{outline:none;border-color:var(--ball)}
   .gate .btn{width:100%;margin-top:14px;padding:12px}
   .gate .err{color:#FFD3CB;font-size:12.5px;min-height:20px;margin:12px 0 0}
- 
+
   .players{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   @media(max-width:600px){.players{grid-template-columns:1fr}}
   .pfield{display:flex;align-items:center;gap:10px;background:rgba(8,40,63,.4);border:1px solid var(--line-soft);border-radius:10px;padding:4px 12px}
@@ -283,12 +193,12 @@ Index · HTML
   }
   .tokenfield input:focus{outline:none;border-color:var(--ball)}
   a{color:var(--ball)}
- 
+
   @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
 <body>
- 
+
 <header class="topbar">
   <div class="topbar-in">
     <div class="brand">
@@ -305,22 +215,22 @@ Index · HTML
     </nav>
   </div>
 </header>
- 
+
 <div class="wrap">
   <div id="banner"></div>
   <main id="app" aria-live="polite"><p class="hint" style="margin-top:28px">جارٍ تحميل البطولة…</p></main>
 </div>
- 
+
 <script>
 (function(){
   "use strict";
- 
+
   /* ================= إعدادات المستودع ================= */
   var GH = { owner:"88sulaiman88", repo:"padel", branch:"main", path:"data.json" };
   var API = "https://api.github.com/repos/" + GH.owner + "/" + GH.repo + "/contents/" + GH.path;
   var LOCAL_KEY = "padel_state_v2";
   var POLL_MS = 120000;               // دقيقتان — تحت سقف ٦٠ طلباً/ساعة
- 
+
   /* ================= خزنة التوكن =================
      التوكن ينحفظ مشفَّراً (AES-GCM 256) داخل data.json، ومفتاحه مشتق من الرمز عبر PBKDF2-SHA256 بـ ٣١٠ آلاف تكرار مع مِلح عشوائي.
      لا التوكن ولا الرمز موجودان في هذا الملف، والتحقق يتم بنجاح فكّ التشفير:
@@ -332,7 +242,7 @@ Index · HTML
   var AUTH_SALT = "7f3ac1e9d2b84605padel";
   var AUTH_HASH = "ffaf5be3e66c0906bb4679b3d0d82d8b324a4b80a6541e92e2e32084e6ecbcfb";
   var AUTH_ITER = 310000;
- 
+
   var ROTATION = [
     [[[0,1],[2,3]], [[4,5],[6,7]]],
     [[[0,2],[1,3]], [[4,6],[5,7]]],
@@ -342,7 +252,7 @@ Index · HTML
     [[[0,6],[1,7]], [[2,4],[3,5]]],
     [[[0,7],[2,5]], [[1,6],[3,4]]]
   ];
- 
+
   var state = { players: [], schedule: [], vault: null };
   var view = "standings";
   var unlocked = false;
@@ -352,11 +262,11 @@ Index · HTML
   var sha = null;          // sha آخر نسخة قرأناها من GitHub
   var pending = false;     // تغييرات لم تُرفع بعد
   var token = "";
- 
+
   var app = document.getElementById("app");
   var banner = document.getElementById("banner");
   var syncEl = document.getElementById("sync");
- 
+
   /* ================= أدوات ================= */
   function el(tag, cls, txt){
     var n = document.createElement(tag);
@@ -372,7 +282,7 @@ Index · HTML
   function lsGet(k){ try { return window.localStorage.getItem(k); } catch(e){ return null; } }
   function lsSet(k,v){ try { window.localStorage.setItem(k,v); } catch(e){} }
   function lsDel(k){ try { window.localStorage.removeItem(k); } catch(e){} }
- 
+
   function b64enc(str){
     var bytes = new TextEncoder().encode(str), bin = "";
     for (var i=0;i<bytes.length;i++) bin += String.fromCharCode(bytes[i]);
@@ -443,7 +353,7 @@ Index · HTML
     for (var i=0;i<bin.length;i++) a[i] = bin.charCodeAt(i);
     return a;
   }
- 
+
   /* ================= المزامنة مع GitHub ================= */
   function blankPlayers(){
     var a = [];
@@ -451,7 +361,7 @@ Index · HTML
     return a;
   }
   function saveLocal(){ lsSet(LOCAL_KEY, JSON.stringify(state)); }
- 
+
   function applyData(data){
     if (!data) return false;
     if (data.vault) state.vault = data.vault;
@@ -464,7 +374,7 @@ Index · HTML
     saveLocal();
     return true;
   }
- 
+
   function pull(){
     return fetch(API + "?ref=" + GH.branch + "&t=" + Date.now(), {
       headers: { "Accept": "application/vnd.github+json" }, cache: "no-store"
@@ -478,7 +388,7 @@ Index · HTML
       return JSON.parse(b64dec(j.content));
     });
   }
- 
+
   var pushTimer = null;
   function queuePush(){
     pending = true;
@@ -487,7 +397,7 @@ Index · HTML
     clearTimeout(pushTimer);
     pushTimer = setTimeout(function(){ push(); }, 1500);
   }
- 
+
   function push(retried){
     if (!token){ setSync("warn", "بدون توكن — محلي فقط"); return Promise.resolve(false); }
     setSync("saving", "جارٍ الحفظ…");
@@ -528,7 +438,7 @@ Index · HTML
       return false;
     });
   }
- 
+
   /* ================= النموذج ================= */
   function nameOf(id){
     for (var i=0;i<state.players.length;i++) if (state.players[i].id === id) return state.players[i].name || "—";
@@ -585,7 +495,7 @@ Index · HTML
     return list;
   }
   function ready(){ return state.players.every(function(p){ return (p.name || "").trim() !== ""; }); }
- 
+
   function arm(btn, label, run){
     var original = btn.textContent, armed = false, t = null;
     btn.addEventListener("click", function(){
@@ -629,7 +539,7 @@ Index · HTML
     });
     return b;
   }
- 
+
   /* ================= الصفحات ================= */
   function emptyState(title, body, cta){
     var box = el("div","empty");
@@ -643,7 +553,7 @@ Index · HTML
     }
     return box;
   }
- 
+
   function viewMatches(){
     var frag = document.createDocumentFragment();
     if (!state.schedule.length){
@@ -657,7 +567,7 @@ Index · HTML
     line.appendChild(el("p","hint mono", "اكتملت " + done + " من " + state.schedule.length + " مباراة"));
     line.appendChild(refreshBtn());
     frag.appendChild(line);
- 
+
     for (var r = 1; r <= 7; r++){
       (function(r){
         var ms = state.schedule.filter(function(m){ return m.round === r; });
@@ -683,7 +593,7 @@ Index · HTML
     }
     return frag;
   }
- 
+
   function viewStandings(){
     var frag = document.createDocumentFragment();
     if (!state.schedule.length){
@@ -696,7 +606,7 @@ Index · HTML
     line.appendChild(el("p","hint","النقاط فردية. عند التساوي يفصل فرق الجولات، ثم عدد الانتصارات."));
     line.appendChild(refreshBtn());
     frag.appendChild(line);
- 
+
     var rows = standings();
     var table = el("table","table"), thead = el("thead"), trh = el("tr");
     [["#",""],["اللاعب","name"],["لعب",""],["فاز",""],["خسر",""],["جولات (ف/خ)",""],["النقاط",""]].forEach(function(h){
@@ -721,7 +631,7 @@ Index · HTML
     card.style.padding = "16px 14px";
     card.appendChild(table);
     frag.appendChild(card);
- 
+
     var lg = el("div","legend");
     lg.appendChild(el("div", null, "طريقة احتساب النقاط:"));
     var ul = el("ul");
@@ -738,7 +648,7 @@ Index · HTML
     frag.appendChild(lg);
     return frag;
   }
- 
+
   function passField(ph){
     var i = document.createElement("input");
     i.type = "password"; i.className = "code"; i.placeholder = ph;
@@ -746,19 +656,19 @@ Index · HTML
     i.setAttribute("aria-label", ph);
     return i;
   }
- 
+
   function viewGate(){
     var frag = document.createDocumentFragment();
     var g = el("div","gate");
     g.appendChild(el("div","mark"));
     g.appendChild(el("h3", null, "دخول الإدارة"));
     g.appendChild(el("p","sub","اكتب الرمز. يشتغل من أي جهاز بدون أي إعداد."));
- 
+
     var inp = passField("الرمز");
     g.appendChild(inp);
     var err = el("p","err","");
     var btn = el("button","btn primary","دخول");
- 
+
     function submit(){
       var wait = Math.ceil((blockUntil - Date.now()) / 1000);
       if (wait > 0){ err.textContent = "انتظر " + wait + " ثانية قبل المحاولة."; return; }
@@ -796,11 +706,11 @@ Index · HTML
     setTimeout(function(){ inp.focus(); }, 40);
     return frag;
   }
- 
+
   function viewAdmin(){
     if (!unlocked) return viewGate();
     var frag = document.createDocumentFragment();
- 
+
     var bar = el("div","adminbar");
     bar.appendChild(el("span","who","الإدارة · مفتوحة"));
     if (pending){
@@ -812,14 +722,14 @@ Index · HTML
     lk.addEventListener("click", function(){ unlocked = false; token = ""; sessionCode = ""; go("standings"); });
     bar.appendChild(lk);
     frag.appendChild(bar);
- 
+
     /* ---- الربط بـ GitHub ---- */
     frag.appendChild(el("h2","sec","الاتصال بـ GitHub"));
     var tc = el("div","card");
     tc.appendChild(el("div", null, token
       ? "متصل. النتائج ترتفع إلى " + GH.owner + "/" + GH.repo + " تلقائياً، ويشوفها الشباب خلال دقيقتين."
       : "غير متصل بعد. الصق التوكن مرة واحدة، وبعدها الرمز وحده يكفي من أي جهاز."));
- 
+
     if (!token || vaultPane === "token"){
       var tf = el("div","tokenfield");
       var ti = document.createElement("input");
@@ -865,7 +775,7 @@ Index · HTML
       tc.appendChild(sw);
     }
     frag.appendChild(tc);
- 
+
     /* ---- اللاعبون ---- */
     frag.appendChild(el("h2","sec","اللاعبون"));
     frag.appendChild(el("p","hint","ثمانية أسماء. تقدر تعدّل أي اسم في أي وقت وبيتحدّث في كل الصفحات."));
@@ -886,7 +796,7 @@ Index · HTML
       grid.appendChild(f);
     });
     frag.appendChild(grid);
- 
+
     /* ---- القرعة ---- */
     frag.appendChild(el("h2","sec","القرعة والجدول"));
     var c1 = el("div","card");
@@ -911,7 +821,7 @@ Index · HTML
     c1.appendChild(row);
     if (!ready()) c1.appendChild(el("p","admin-note","اكتب الأسماء الثمانية كلها عشان تنفتح القرعة."));
     frag.appendChild(c1);
- 
+
     /* ---- تسجيل النتائج ---- */
     if (state.schedule.length){
       frag.appendChild(el("h2","sec","تسجيل النتائج"));
@@ -931,7 +841,7 @@ Index · HTML
         })(r);
       }
     }
- 
+
     /* ---- إعادة الضبط ---- */
     frag.appendChild(el("h2","sec","إعادة الضبط"));
     var c2 = el("div","card");
@@ -945,10 +855,10 @@ Index · HTML
     });
     c2.appendChild(rst);
     frag.appendChild(c2);
- 
+
     return frag;
   }
- 
+
   function editCard(m){
     var r = read(m);
     var card = el("article","match");
@@ -956,18 +866,18 @@ Index · HTML
     top.appendChild(el("span","court-tag","ملعب " + m.court));
     top.appendChild(r.done ? el("span","final", r.label) : el("span","status","بدون نتيجة"));
     card.appendChild(top);
- 
+
     function update(next){
       m.res = next;
       queuePush();
       card.replaceWith(editCard(m));
       refreshCounters();
     }
- 
+
     card.appendChild(courtEl(m, r, true, function(key){
       update({ w:key, t: m.res ? m.res.t : 0 });
     }));
- 
+
     var bar = el("div","pickbar");
     var seg = el("div","seg");
     [["a",1],["a",0],["b",0],["b",1]].forEach(function(o){
@@ -990,7 +900,7 @@ Index · HTML
     card.appendChild(bar);
     return card;
   }
- 
+
   function refreshCounters(){
     document.querySelectorAll(".round-head").forEach(function(rh){
       var n = rh.querySelector(".n");
@@ -1001,7 +911,7 @@ Index · HTML
       if (s) s.textContent = ms.filter(function(m){ return read(m).done; }).length + "/" + ms.length;
     });
   }
- 
+
   /* ================= التنقل ================= */
   function render(){
     app.innerHTML = "";
@@ -1014,14 +924,14 @@ Index · HTML
     document.getElementById("adminkey").classList.toggle("live", view === "admin");
   }
   function go(v){ view = v; syncNav(); render(); window.scrollTo(0, 0); }
- 
+
   document.querySelectorAll("nav button").forEach(function(b){
     b.addEventListener("click", function(){ go(b.dataset.view); });
   });
   document.getElementById("adminkey").addEventListener("click", function(){
     go(view === "admin" ? "standings" : "admin");
   });
- 
+
   /* متابعة تلقائية للشباب */
   setInterval(function(){
     if (unlocked || pending) return;
@@ -1029,12 +939,12 @@ Index · HTML
       if (applyData(d) && view !== "admin"){ render(); setSync("ok", "محدَّث"); }
     }).catch(function(){});
   }, POLL_MS);
- 
+
   window.addEventListener("online", function(){ if (pending) push(); });
- 
+
   /* ================= الإقلاع ================= */
   state.players = blankPlayers();
- 
+
   pull().then(function(d){
     if (!applyData(d)){
       var local = lsGet(LOCAL_KEY);
@@ -1054,6 +964,3 @@ Index · HTML
 </script>
 </body>
 </html>
- 
-
-
