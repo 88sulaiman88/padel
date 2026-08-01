@@ -587,12 +587,12 @@
     }
     frag.appendChild(el("h2","sec","ترتيب اللاعبين"));
     var line = el("div","headline");
-    line.appendChild(el("p","hint","النقاط فردية. عند التساوي يفصل فرق الجولات، ثم عدد الانتصارات."));
+    line.appendChild(el("p","hint","النقاط فردية. عند التساوي يفصل فرق الأشواط، ثم عدد الانتصارات."));
     frag.appendChild(line);
 
     var rows = standings();
     var table = el("table","table"), thead = el("thead"), trh = el("tr");
-    [["#",""],["اللاعب","name"],["لعب",""],["فاز",""],["خسر",""],["جولات (ف/خ)",""],["النقاط",""]].forEach(function(h){
+    [["#",""],["اللاعب","name"],["لعب",""],["فاز",""],["خسر",""],["أشواط (ف/خ)",""],["النقاط",""]].forEach(function(h){
       trh.appendChild(el("th", h[1] === "name" ? "name" : "", h[0]));
     });
     thead.appendChild(trh); table.appendChild(thead);
