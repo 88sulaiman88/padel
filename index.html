@@ -950,7 +950,7 @@
       var local = lsGet(LOCAL_KEY);
       if (local) applyData(JSON.parse(local));
     }
-    setSync("", state.vault ? "وضع القراءة" : "بانتظار التجهيز");
+    setSync("", state.vault ? "متصل" : "بانتظار التجهيز");
   }).catch(function(){
     var local = lsGet(LOCAL_KEY);
     if (local) { try { applyData(JSON.parse(local)); } catch(e){} }
