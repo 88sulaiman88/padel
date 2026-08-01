@@ -204,8 +204,8 @@
     <div class="brand">
       <button class="ball" id="adminkey" type="button" aria-label="الإدارة" title="الإدارة"></button>
       <div>
-        <h1>بادل أمريكانو</h1>
-        <span>٨ لاعبين · ملعبان · ٧ جولات</span>
+        <h1>بطولة الشقة للبادل</h1>
+        <span>الترتيب والجولات</span>
       </div>
     </div>
     <div class="sync" id="sync"><b></b><span>جارٍ التحميل…</span></div>
@@ -622,7 +622,7 @@
       tr.appendChild(el("td",null, String(row.played)));
       tr.appendChild(el("td",null, String(row.w)));
       tr.appendChild(el("td",null, String(row.l)));
-      tr.appendChild(el("td","sets", row.sw + "-" + row.sl));
+      tr.appendChild(el("td","sets", row.sl + "-" + row.sw));
       tr.appendChild(el("td","pts", String(row.pts)));
       tb.appendChild(tr);
     });
