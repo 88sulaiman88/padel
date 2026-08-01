@@ -440,6 +440,7 @@
   }
 
   /* ================= النموذج ================= */
+  function courtName(c){ return "ملعب " + c + (c === 1 ? " (يمين)" : " (يسار)"); }
   function nameOf(id){
     for (var i=0;i<state.players.length;i++) if (state.players[i].id === id) return state.players[i].name || "—";
     return "—";
@@ -565,7 +566,7 @@
           var res = read(m);
           var card = el("article","match");
           var top = el("div","match-top");
-          top.appendChild(el("span","court-tag","ملعب " + m.court));
+          top.appendChild(el("span","court-tag", courtName(m.court)));
           top.appendChild(res.done ? el("span","final", res.label) : el("span","status","بانتظار النتيجة"));
           card.appendChild(top);
           card.appendChild(courtEl(m, res, false));
@@ -845,7 +846,7 @@
     var r = read(m);
     var card = el("article","match");
     var top = el("div","match-top");
-    top.appendChild(el("span","court-tag","ملعب " + m.court));
+    top.appendChild(el("span","court-tag", courtName(m.court)));
     top.appendChild(r.done ? el("span","final", r.label) : el("span","status","بدون نتيجة"));
     card.appendChild(top);
 
