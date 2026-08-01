@@ -57,14 +57,6 @@
   .ball:focus-visible{outline:2px solid var(--ball);outline-offset:3px}
   .ball.live{box-shadow:0 0 0 1.5px rgba(0,0,0,.25) inset, 0 0 0 3px rgba(217,242,75,.28)}
 
-  .sync{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap}
-  .sync b{width:6px;height:6px;border-radius:50%;background:var(--muted);display:inline-block;flex:none}
-  .sync.ok b{background:var(--ball)}
-  .sync.saving b{background:var(--ball);animation:pulse 1s infinite}
-  .sync.warn b{background:#F2C14E}
-  .sync.err b{background:var(--alert)}
-  .sync.err{color:#FFC9C0}
-  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
 
   nav{display:flex;gap:2px;width:100%;margin-top:12px}
   nav button{
@@ -141,7 +133,8 @@
   .seg{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line-soft);border-radius:9px;overflow:hidden}
   .seg button{direction:ltr;unicode-bidi:isolate;appearance:none;border:0;background:transparent;color:var(--muted);cursor:pointer;font-family:var(--mono);font-size:13px;font-weight:600;padding:10px 0;transition:background .15s,color .15s}
   .seg button + button{border-inline-start:1px solid var(--line-soft)}
-  .seg button:nth-child(3){border-inline-start:2px dashed var(--line)}
+  .seg button:nth-child(3),
+  .seg button:nth-child(1){border-inline-start:2px dashed var(--line)}
   .seg button:hover{color:var(--chalk);background:rgba(237,244,241,.08)}
   .seg button[aria-pressed="true"]{background:var(--ball);color:#12250B}
   .seg button:focus-visible{outline:2px solid var(--ball);outline-offset:-2px}
@@ -208,7 +201,6 @@
         <span>الترتيب والجولات</span>
       </div>
     </div>
-    <div class="sync" id="sync"><b></b><span>جارٍ التحميل…</span></div>
     <nav role="tablist">
       <button role="tab" data-view="standings" aria-selected="true">الترتيب</button>
       <button role="tab" data-view="matches" aria-selected="false">المباريات</button>
@@ -266,7 +258,7 @@
 
   var app = document.getElementById("app");
   var banner = document.getElementById("banner");
-  var syncEl = document.getElementById("sync");
+  var syncText = "";
 
   /* ================= أدوات ================= */
   function el(tag, cls, txt){
@@ -276,21 +268,15 @@
     return n;
   }
   function say(msg){ banner.textContent = msg || ""; banner.className = msg ? "on" : ""; }
+  /* الحالة تظهر داخل شريط الإدارة فقط */
   function setSync(kind, text){
-    syncEl.className = "sync " + (kind || "");
-    syncEl.querySelector("span").textContent = text;
-  }
-  function relTime(ts){
-    var d = Math.floor((Date.now() - ts) / 1000);
-    if (d < 45) return "حُدِّث الآن";
-    var m = Math.round(d / 60);
-    if (m < 60) return "آخر تحديث قبل " + (m === 1 ? "دقيقة" : m === 2 ? "دقيقتين" : m < 11 ? m + " دقائق" : m + " دقيقة");
-    var h = Math.round(m / 60);
-    return "آخر تحديث قبل " + (h === 1 ? "ساعة" : h === 2 ? "ساعتين" : h < 11 ? h + " ساعات" : h + " ساعة");
+    syncText = text || "";
+    var e = document.getElementById("adminstatus");
+    if (e) e.textContent = syncText;
   }
   function markSynced(){
     lastSync = Date.now();
-    setSync("ok", relTime(lastSync));
+    setSync("ok", "محفوظ");
   }
   function lsGet(k){ try { return window.localStorage.getItem(k); } catch(e){ return null; } }
   function lsSet(k,v){ try { window.localStorage.setItem(k,v); } catch(e){} }
@@ -538,21 +524,6 @@
     });
     return court;
   }
-  function refreshBtn(){
-    var b = el("button","btn tiny","تحديث الآن");
-    b.addEventListener("click", function(){
-      b.disabled = true; b.textContent = "…";
-      pull().then(function(d){
-        applyData(d);
-        markSynced();
-        render();
-      }).catch(function(){
-        b.disabled = false; b.textContent = "تحديث الآن";
-        setSync("err", "تعذّر التحديث");
-      });
-    });
-    return b;
-  }
 
   /* ================= الصفحات ================= */
   function emptyState(title, body, cta){
@@ -579,7 +550,6 @@
     var line = el("div","headline");
     var done = state.schedule.filter(function(m){ return read(m).done; }).length;
     line.appendChild(el("p","hint mono", "اكتملت " + done + " من " + state.schedule.length + " مباراة"));
-    line.appendChild(refreshBtn());
     frag.appendChild(line);
 
     for (var r = 1; r <= 7; r++){
@@ -617,7 +587,6 @@
     frag.appendChild(el("h2","sec","ترتيب اللاعبين"));
     var line = el("div","headline");
     line.appendChild(el("p","hint","النقاط فردية. عند التساوي يفصل فرق الجولات، ثم عدد الانتصارات."));
-    line.appendChild(refreshBtn());
     frag.appendChild(line);
 
     var rows = standings();
@@ -724,7 +693,9 @@
     var frag = document.createDocumentFragment();
 
     var bar = el("div","adminbar");
-    bar.appendChild(el("span","who","الإدارة · مفتوحة"));
+    var who = el("span","who", syncText || "الإدارة · مفتوحة");
+    who.id = "adminstatus";
+    bar.appendChild(who);
     if (pending){
       var up = el("button","btn","ارفع الآن");
       up.addEventListener("click", function(){ push(); });
@@ -952,10 +923,6 @@
     }).catch(function(){});
   }, POLL_MS);
 
-  setInterval(function(){
-    if (lastSync && syncEl.classList.contains("ok")) setSync("ok", relTime(lastSync));
-  }, 30000);
-
   window.addEventListener("online", function(){ if (pending) push(); });
 
   /* ================= الإقلاع ================= */
@@ -966,7 +933,7 @@
       var local = lsGet(LOCAL_KEY);
       if (local) applyData(JSON.parse(local));
     }
-    if (lastSync) markSynced(); else setSync("", "بانتظار التجهيز");
+    if (lastSync) markSynced();
   }).catch(function(){
     var local = lsGet(LOCAL_KEY);
     if (local) { try { applyData(JSON.parse(local)); } catch(e){} }
