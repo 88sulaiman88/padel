@@ -1,0 +1,43 @@
+{
+  "players": [
+    {
+      "id": "p1",
+      "name": ""
+    },
+    {
+      "id": "p2",
+      "name": ""
+    },
+    {
+      "id": "p3",
+      "name": ""
+    },
+    {
+      "id": "p4",
+      "name": ""
+    },
+    {
+      "id": "p5",
+      "name": ""
+    },
+    {
+      "id": "p6",
+      "name": ""
+    },
+    {
+      "id": "p7",
+      "name": ""
+    },
+    {
+      "id": "p8",
+      "name": ""
+    }
+  ],
+  "schedule": [],
+  "vault": {
+    "v": 1,
+    "salt": "74af7094bd6946685db5ea4e9547a0ef",
+    "iv": "352bac3808a019b65ea57bc0",
+    "ct": "U5LRlV+LXzU4wWhkYole28y2T3cNB5X2UOljiqH2xKhB+cdCvpG0j0ksRjgFfzhYIPpTmOidmNcDKoEOKTut39dNZxOw7wjteF3I8BgfPEam80AMX+50j5FLi/Gn2erhdSldb4Ule7DIpsF3sw=="
+  }
+}
