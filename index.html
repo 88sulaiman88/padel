@@ -156,6 +156,7 @@
   .table td{padding:12px 6px;text-align:center;border-bottom:1px solid var(--line-soft);font-family:var(--mono);font-size:13px;color:var(--muted)}
   .table td.name{text-align:right;font-family:var(--body);font-size:15px;color:var(--chalk);font-weight:500}
   .table td.rank{width:34px;font-size:12px}
+  .table td.sets{direction:ltr;unicode-bidi:isolate}
   .table td.pts{color:var(--chalk);font-size:17px;font-weight:600}
   .table tr.lead td.rank,.table tr.lead td.pts{color:var(--ball)}
   .table tr.lead td.name::after{content:"";display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--ball);margin-inline-start:8px;vertical-align:middle}
@@ -608,7 +609,7 @@
 
     var rows = standings();
     var table = el("table","table"), thead = el("thead"), trh = el("tr");
-    [["#",""],["اللاعب","name"],["لعب",""],["فاز",""],["خسر",""],["جولات",""],["النقاط",""]].forEach(function(h){
+    [["#",""],["اللاعب","name"],["لعب",""],["فاز",""],["خسر",""],["جولات (ف/خ)",""],["النقاط",""]].forEach(function(h){
       trh.appendChild(el("th", h[1] === "name" ? "name" : "", h[0]));
     });
     thead.appendChild(trh); table.appendChild(thead);
@@ -621,7 +622,7 @@
       tr.appendChild(el("td",null, String(row.played)));
       tr.appendChild(el("td",null, String(row.w)));
       tr.appendChild(el("td",null, String(row.l)));
-      tr.appendChild(el("td",null, row.sw + "-" + row.sl));
+      tr.appendChild(el("td","sets", row.sw + "-" + row.sl));
       tr.appendChild(el("td","pts", String(row.pts)));
       tb.appendChild(tr);
     });
@@ -879,7 +880,7 @@
 
     var bar = el("div","pickbar");
     var seg = el("div","seg");
-    [["a",0],["a",1],["b",1],["b",0]].forEach(function(o){
+    [["a",1],["a",0],["b",0],["b",1]].forEach(function(o){
       var side = o[0], type = o[1];
       var on = r.done && m.res.w === side && m.res.t === type;
       var b = el("button", null, "2-" + type);
