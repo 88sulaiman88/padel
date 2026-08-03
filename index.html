@@ -245,9 +245,11 @@
     [[[0,7],[2,5]], [[1,6],[3,4]]]
   ];
 
-  var state = { players: [], schedule: [], vault: null };
+  var state = { players: [], schedule: [], vault: null, guests: [] };
   var view = "standings";
-  var unlocked = false;
+  var unlocked = false;   // أدمن
+  var role = "";          // "admin" أو "player"
+  var mePid = "";         // اللاعب الداخل برمزه
   var tries = 0, blockUntil = 0;
   var vaultPane = null;
   var sessionCode = "";
@@ -353,6 +355,15 @@
     return a;
   }
 
+  /* يجرّب رمز اللاعبين: نجاح الفكّ يحدد صاحب الرمز */
+  function tryGuests(code, i){
+    i = i || 0;
+    if (!state.guests || i >= state.guests.length) return Promise.resolve(null);
+    return openVault(code, state.guests[i]).then(function(t){
+      return { token: t, pid: state.guests[i].pid };
+    }).catch(function(){ return tryGuests(code, i + 1); });
+  }
+
   /* ================= المزامنة مع GitHub ================= */
   function blankPlayers(){
     var a = [];
@@ -364,6 +375,7 @@
   function applyData(data){
     if (!data) return false;
     if (data.vault) state.vault = data.vault;
+    state.guests = data.guests || [];
     if (!data.players || data.players.length !== 8) return false;
     state.players = data.players;
     state.schedule = (data.schedule || []).map(function(m){
@@ -647,8 +659,8 @@
     var frag = document.createDocumentFragment();
     var g = el("div","gate");
     g.appendChild(el("div","mark"));
-    g.appendChild(el("h3", null, "دخول الإدارة"));
-    g.appendChild(el("p","sub","اكتب الرمز. يشتغل من أي جهاز بدون أي إعداد."));
+    g.appendChild(el("h3", null, "تسجيل الدخول"));
+    g.appendChild(el("p","sub","اكتب رمزك. رمز الإدارة يفتح كل شي، ورمز اللاعب يفتح مبارياته فقط."));
 
     var inp = passField("الرمز");
     g.appendChild(inp);
@@ -662,16 +674,22 @@
       if (!code) return;
       btn.disabled = true; err.textContent = "جارٍ التحقق…";
       checkCode(code).then(function(ok){
-        if (!ok){
+        if (!ok) return tryGuests(code).then(function(gu){
+          if (gu){                                  // رمز لاعب
+            token = gu.token; role = "player"; mePid = gu.pid; tries = 0;
+            setSync("ok", "متصل");
+            render();
+            return "done";
+          }
           btn.disabled = false; tries++; inp.value = "";
           if (tries >= 3){
             blockUntil = Date.now() + Math.min(60, 5 * Math.pow(2, tries - 3)) * 1000;
             err.textContent = "رمز غير صحيح. جرّب بعد " + Math.ceil((blockUntil - Date.now())/1000) + " ثانية.";
           } else err.textContent = "رمز غير صحيح.";
           inp.focus();
-          return;
-        }
-        unlocked = true; tries = 0; sessionCode = code;
+          return "done";
+        });
+        unlocked = true; role = "admin"; tries = 0; sessionCode = code;
         if (!state.vault){ render(); return; }                 // أول مرة: يربط GitHub من الداخل
         err.textContent = "جارٍ فتح الخزنة…";
         openVault(code, state.vault).then(function(t){
@@ -680,6 +698,7 @@
           say("تعذّر فكّ الخزنة بهذا الرمز. تقدر تسجّل محلياً، أو تربط توكناً جديداً من الإدارة.");
           render();
         });
+        return null;
       }).catch(function(){
         btn.disabled = false;
         err.textContent = "المتصفح ما يدعم التحقق. جرّب متصفحاً أحدث.";
@@ -693,7 +712,47 @@
     return frag;
   }
 
+  /* شاشة اللاعب: مبارياته فقط، بدون قرعة ولا إعدادات */
+  function viewMine(){
+    var frag = document.createDocumentFragment();
+
+    var bar = el("div","adminbar");
+    var who = el("span","who", syncText || ("مبارياتي · " + nameOf(mePid)));
+    who.id = "adminstatus";
+    bar.appendChild(who);
+    var lk = el("button","btn","اقفل الآن");
+    lk.addEventListener("click", function(){
+      role = ""; mePid = ""; token = ""; go("standings");
+    });
+    bar.appendChild(lk);
+    frag.appendChild(bar);
+
+    var mine = state.schedule.filter(function(m){
+      return m.a.indexOf(mePid) > -1 || m.b.indexOf(mePid) > -1;
+    });
+    if (!mine.length){
+      frag.appendChild(emptyState("ما لك مباريات بعد", "انتظر لين تُسحب القرعة."));
+      return frag;
+    }
+
+    frag.appendChild(el("h2","sec","مبارياتي"));
+    var doneN = mine.filter(function(m){ return read(m).done; }).length;
+    frag.appendChild(el("p","hint","سجّل نتيجة كل مباراة بعد ما تخلص. اكتملت " + doneN + " من " + mine.length + "."));
+
+    mine.forEach(function(m){
+      var rh = el("div","round-head");
+      rh.appendChild(el("span","n", String(m.round)));
+      rh.appendChild(el("span","t","الجولة " + m.round));
+      frag.appendChild(rh);
+      var g = el("div","courts");
+      g.appendChild(editCard(m));
+      frag.appendChild(g);
+    });
+    return frag;
+  }
+
   function viewAdmin(){
+    if (role === "player") return viewMine();
     if (!unlocked) return viewGate();
     var frag = document.createDocumentFragment();
 
@@ -707,7 +766,7 @@
       bar.appendChild(up);
     }
     var lk = el("button","btn","اقفل الآن");
-    lk.addEventListener("click", function(){ unlocked = false; token = ""; sessionCode = ""; go("standings"); });
+    lk.addEventListener("click", function(){ unlocked = false; role = ""; token = ""; sessionCode = ""; go("standings"); });
     bar.appendChild(lk);
     frag.appendChild(bar);
 
@@ -763,6 +822,73 @@
       tc.appendChild(sw);
     }
     frag.appendChild(tc);
+
+    /* ---- رموز اللاعبين ---- */
+    if (token){
+      frag.appendChild(el("h2","sec","رموز اللاعبين"));
+      var gc = el("div","card");
+      gc.appendChild(el("div", null, "أعطِ لاعباً رمزاً خاصاً يفتح له مبارياته فقط — بدون قرعة ولا إعدادات ولا إعادة ضبط."));
+
+      if (state.guests.length){
+        var lst = el("div","stack");
+        lst.style.marginTop = "12px";
+        state.guests.forEach(function(g, gi){
+          var rowg = el("div","tokenfield");
+          rowg.style.marginTop = "0";
+          var nm = el("div", null, nameOf(g.pid));
+          nm.style.flex = "1";
+          nm.style.alignSelf = "center";
+          rowg.appendChild(nm);
+          var del = el("button","btn danger","احذف الرمز");
+          arm(del, "أكيد؟", function(){
+            state.guests.splice(gi, 1);
+            queuePush(); render();
+          });
+          rowg.appendChild(del);
+          lst.appendChild(rowg);
+        });
+        gc.appendChild(lst);
+      }
+
+      var gf = el("div","tokenfield");
+      var sel = document.createElement("select");
+      sel.setAttribute("aria-label","اختر اللاعب");
+      sel.style.cssText = "flex:1;min-width:150px;background:rgba(8,40,63,.5);border:1px solid var(--line-soft);border-radius:10px;color:var(--chalk);font-family:var(--body);font-size:14px;padding:10px 12px";
+      state.players.forEach(function(pl){
+        if (state.guests.some(function(g){ return g.pid === pl.id; })) return;
+        var o = document.createElement("option");
+        o.value = pl.id; o.textContent = pl.name || "—";
+        sel.appendChild(o);
+      });
+      gf.appendChild(sel);
+      var gi2 = document.createElement("input");
+      gi2.type = "text"; gi2.setAttribute("dir","ltr"); gi2.placeholder = "رمزه (٤ خانات فأكثر)";
+      gi2.setAttribute("aria-label","رمز اللاعب");
+      gf.appendChild(gi2);
+      var gsave = el("button","btn primary","أنشئ الرمز");
+      var gmsg = el("p","admin-note","");
+      gsave.addEventListener("click", function(){
+        var code = gi2.value.trim(), pid = sel.value;
+        if (!pid){ gmsg.textContent = "ما فيه لاعب متاح."; return; }
+        if (code.length < 4){ gmsg.textContent = "الرمز ٤ خانات على الأقل."; return; }
+        gsave.disabled = true; gmsg.textContent = "جارٍ التشفير…";
+        checkCode(code).then(function(isAdmin){
+          if (isAdmin){ gsave.disabled = false; gmsg.textContent = "هذا رمزك أنت. اختر رمزاً مختلفاً."; return null; }
+          return seal(code, token).then(function(v){
+            v.pid = pid;
+            state.guests.push(v);
+            gi2.value = "";
+            queuePush();
+            render();
+          });
+        }).catch(function(){ gsave.disabled = false; gmsg.textContent = "تعذّر التشفير."; });
+      });
+      gf.appendChild(gsave);
+      gc.appendChild(gf);
+      gc.appendChild(gmsg);
+      gc.appendChild(el("p","admin-note","الرمز ما ينحفظ نصاً في أي مكان — ينحفظ أثره المشفَّر فقط، فلا تقدر تسترجعه لو نسيته؛ احذفه وأنشئ غيره."));
+      frag.appendChild(gc);
+    }
 
     /* ---- اللاعبون ---- */
     frag.appendChild(el("h2","sec","اللاعبون"));
