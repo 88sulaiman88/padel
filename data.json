@@ -279,13 +279,5 @@
     "iv": "352bac3808a019b65ea57bc0",
     "ct": "U5LRlV+LXzU4wWhkYole28y2T3cNB5X2UOljiqH2xKhB+cdCvpG0j0ksRjgFfzhYIPpTmOidmNcDKoEOKTut39dNZxOw7wjteF3I8BgfPEam80AMX+50j5FLi/Gn2erhdSldb4Ule7DIpsF3sw=="
   },
-  "guests": [
-    {
-      "v": 1,
-      "salt": "c2242f6622727d3b8c84f8d7839f313d",
-      "iv": "61f13ed4b3f6c9e00a44cd0c",
-      "ct": "t/piVSpU4Qa14hzCrxaoCoKtwLkIT9orrPqYPypqCAQnZ7Wg0UaHReCbqSa2LzVD873MQ79359AXpabcdyI9K/OUFL0soowm/TzAGZqi5dn68OnEtl1kpkqyPUexmyfkEtgIIJb9jgbHqZRX9w==",
-      "pid": "p4"
-    }
-  ]
+  "guests": []
 }
