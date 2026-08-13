@@ -198,12 +198,13 @@
       <button class="ball" id="adminkey" type="button" aria-label="الإدارة" title="الإدارة"></button>
       <div>
         <h1>بطولة الشقة للبادل</h1>
-        <span>الترتيب والجولات</span>
+        <span>بطولة أمريكانو</span>
       </div>
     </div>
     <nav role="tablist">
       <button role="tab" data-view="standings" aria-selected="true">الترتيب</button>
       <button role="tab" data-view="matches" aria-selected="false">المباريات</button>
+      <button role="tab" data-view="archive" aria-selected="false">الأرشيف</button>
     </nav>
   </div>
 </header>
@@ -235,23 +236,37 @@
   var AUTH_HASH = "ffaf5be3e66c0906bb4679b3d0d82d8b324a4b80a6541e92e2e32084e6ecbcfb";
   var AUTH_ITER = 310000;
 
-  var ROTATION = [
-    [[[0,1],[2,3]], [[4,5],[6,7]]],
-    [[[0,2],[1,3]], [[4,6],[5,7]]],
-    [[[0,3],[1,2]], [[4,7],[5,6]]],
-    [[[0,4],[2,6]], [[1,5],[3,7]]],
-    [[[0,5],[3,6]], [[1,4],[2,7]]],
-    [[[0,6],[1,7]], [[2,4],[3,5]]],
-    [[[0,7],[2,5]], [[1,6],[3,4]]]
-  ];
+  var SIZES = [4, 8, 12, 16];   // أعداد مسموحة (تقبل القسمة على ٤)
 
-  var state = { players: [], schedule: [], vault: null, guests: [] };
+  /* يولّد جدول أمريكانو كامل لأي عدد n من مضاعفات ٤:
+     دوري روبن للأزواج (كل لاعب يزامل الباقين مرة)، ثم توزيع أزواج كل جولة على الملاعب. */
+  function makeRotation(n){
+    var arr = []; for (var i=0;i<n;i++) arr.push(i);
+    var rounds = [];
+    for (var r=0;r<n-1;r++){
+      var pairs = [];
+      for (var i=0;i<n/2;i++) pairs.push([arr[i], arr[n-1-i]]);
+      rounds.push(pairs);
+      var fixed = arr[0], rest = arr.slice(1);
+      rest.unshift(rest.pop());
+      arr = [fixed].concat(rest);
+    }
+    // كل جولة: زوجان متتاليان = مباراة على ملعب
+    return rounds.map(function(pairs){
+      var courts = [];
+      for (var c=0;c<n/4;c++) courts.push([ pairs[c*2], pairs[c*2+1] ]);
+      return courts;
+    });
+  }
+
+  var state = { size: 8, players: [], schedule: [], vault: null, guests: [], archive: [] };
   var view = "standings";
   var unlocked = false;   // أدمن
   var role = "";          // "admin" أو "player"
   var mePid = "";         // اللاعب الداخل برمزه
   var tries = 0, blockUntil = 0;
   var vaultPane = null;
+  var archiveOpen = -1;    // فهرس البطولة المفتوحة في الأرشيف
   var sessionCode = "";
   var sha = null;          // sha آخر نسخة قرأناها من GitHub
   var pending = false;     // تغييرات لم تُرفع بعد
@@ -365,18 +380,24 @@
   }
 
   /* ================= المزامنة مع GitHub ================= */
-  function blankPlayers(){
+  function blankPlayers(n){
+    n = n || state.size || 8;
     var a = [];
-    for (var i=0;i<8;i++) a.push({ id:"p"+(i+1), name:"" });
+    for (var i=0;i<n;i++) a.push({ id:"p"+(i+1), name:"" });
     return a;
   }
+  function courtsCount(){ return (state.size || 8) / 4; }
+  function roundsCount(){ return (state.size || 8) - 1; }
   function saveLocal(){ lsSet(LOCAL_KEY, JSON.stringify(state)); }
 
   function applyData(data){
     if (!data) return false;
     if (data.vault) state.vault = data.vault;
     state.guests = data.guests || [];
-    if (!data.players || data.players.length !== 8) return false;
+    state.archive = data.archive || [];
+    if (data.size) state.size = data.size;
+    if (!data.players || !data.players.length) return false;
+    state.size = data.players.length;
     state.players = data.players;
     state.schedule = (data.schedule || []).map(function(m){
       if (m.res === undefined) m.res = null;
@@ -452,7 +473,7 @@
   }
 
   /* ================= النموذج ================= */
-  function courtName(c){ return "ملعب " + c + (c === 1 ? " (يمين)" : " (يسار)"); }
+  function courtName(c){ return "ملعب " + c; }
   function nameOf(id){
     for (var i=0;i<state.players.length;i++) if (state.players[i].id === id) return state.players[i].name || "—";
     return "—";
@@ -463,8 +484,9 @@
       var j = Math.floor(Math.random() * (i + 1));
       var t = ids[i]; ids[i] = ids[j]; ids[j] = t;
     }
+    var rotation = makeRotation(state.size);
     var out = [];
-    ROTATION.forEach(function(round, r){
+    rotation.forEach(function(round, r){
       round.forEach(function(m, c){
         out.push({
           id: "r"+(r+1)+"c"+(c+1), round: r+1, court: c+1,
@@ -482,12 +504,14 @@
     return { done:true, winner:m.res.w, label:"2-"+t, winSets:2, loseSets:t,
              ptsWin: t === 0 ? 3 : 2, ptsLose: t === 0 ? 0 : 1 };
   }
-  function standings(){
+  function standings(players, schedule){
+    players = players || state.players;
+    schedule = schedule || state.schedule;
     var rows = {};
-    state.players.forEach(function(p){
+    players.forEach(function(p){
       rows[p.id] = { id:p.id, name:p.name || "—", pts:0, played:0, w:0, l:0, sw:0, sl:0 };
     });
-    state.schedule.forEach(function(m){
+    schedule.forEach(function(m){
       var r = read(m);
       if (!r.done) return;
       [["a", m.a], ["b", m.b]].forEach(function(pair){
@@ -569,7 +593,7 @@
     line.appendChild(el("p","hint mono", "اكتملت " + done + " من " + state.schedule.length + " مباراة"));
     frag.appendChild(line);
 
-    for (var r = 1; r <= 7; r++){
+    for (var r = 1; r <= roundsCount(); r++){
       (function(r){
         var ms = state.schedule.filter(function(m){ return m.round === r; });
         if (!ms.length) return;
@@ -644,6 +668,143 @@
     });
     lg.appendChild(ul);
     frag.appendChild(lg);
+    return frag;
+  }
+
+  /* جدول ترتيب قابل لإعادة الاستخدام (للحالي وللأرشيف) */
+  function standingsTable(players, schedule){
+    var rows = standings(players, schedule);
+    var table = el("table","table"), thead = el("thead"), trh = el("tr");
+    [["#",""],["اللاعب","name"],["لعب",""],["فاز",""],["خسر",""],["أشواط (ف/خ)",""],["النقاط",""]].forEach(function(h){
+      trh.appendChild(el("th", h[1] === "name" ? "name" : "", h[0]));
+    });
+    thead.appendChild(trh); table.appendChild(thead);
+    var tb = el("tbody");
+    rows.forEach(function(row, i){
+      var tr = el("tr", i === 0 && row.pts > 0 ? "lead" : "");
+      tr.appendChild(el("td","rank", String(i+1)));
+      tr.appendChild(el("td","name", row.name));
+      tr.appendChild(el("td",null, String(row.played)));
+      tr.appendChild(el("td",null, String(row.w)));
+      tr.appendChild(el("td",null, String(row.l)));
+      tr.appendChild(el("td","sets", row.sl + "-" + row.sw));
+      tr.appendChild(el("td","pts", String(row.pts)));
+      tb.appendChild(tr);
+    });
+    table.appendChild(tb);
+    var card = el("div","card");
+    card.style.padding = "16px 14px";
+    card.appendChild(table);
+    return card;
+  }
+
+  function fmtDate(ts){
+    var d = new Date(ts);
+    var days = ["الأحد","الاثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"];
+    var mm = String(d.getMonth()+1).padStart(2,"0");
+    var dd = String(d.getDate()).padStart(2,"0");
+    var hh = String(d.getHours()).padStart(2,"0");
+    var mi = String(d.getMinutes()).padStart(2,"0");
+    return days[d.getDay()] + " " + dd + "/" + mm + "/" + d.getFullYear() + " · " + hh + ":" + mi;
+  }
+
+  function viewArchive(){
+    var frag = document.createDocumentFragment();
+
+    /* عرض بطولة مفتوحة */
+    if (archiveOpen > -1 && state.archive[archiveOpen]){
+      var t = state.archive[archiveOpen];
+      var back = el("button","btn tiny","→ رجوع للأرشيف");
+      back.style.marginTop = "22px";
+      back.addEventListener("click", function(){ archiveOpen = -1; render(); });
+      frag.appendChild(back);
+
+      frag.appendChild(el("h2","sec", fmtDate(t.date)));
+      frag.appendChild(el("p","hint mono", t.size + " لاعب · الفائز: " + (t.winner || "—")));
+
+      frag.appendChild(el("h2","sec","الترتيب النهائي"));
+      frag.appendChild(standingsTable(t.players, t.schedule));
+
+      frag.appendChild(el("h2","sec","المباريات"));
+      var rounds = t.size - 1;
+      for (var r = 1; r <= rounds; r++){
+        (function(r){
+          var ms = t.schedule.filter(function(m){ return m.round === r; });
+          if (!ms.length) return;
+          var rh = el("div","round-head");
+          rh.appendChild(el("span","n", String(r)));
+          rh.appendChild(el("span","t","الجولة " + r));
+          frag.appendChild(rh);
+          var grid = el("div","courts");
+          ms.forEach(function(m){
+            var res = read(m);
+            var card = el("article","match");
+            var top = el("div","match-top");
+            top.appendChild(el("span","court-tag","ملعب " + m.court));
+            top.appendChild(res.done ? el("span","final", res.label) : el("span","status","بدون نتيجة"));
+            card.appendChild(top);
+            // نستخدم أسماء البطولة المؤرشفة
+            var savedPlayers = t.players;
+            var nameIn = function(id){ for(var i=0;i<savedPlayers.length;i++) if(savedPlayers[i].id===id) return savedPlayers[i].name||"—"; return "—"; };
+            var court = el("div","court");
+            [["a", m.a], ["b", m.b]].forEach(function(pair){
+              var isWin = res.done && res.winner === pair[0];
+              var side = el("div","side" + (isWin ? " win" : ""));
+              side.appendChild(el("p", null, nameIn(pair[1][0])));
+              side.appendChild(el("div","amp","و"));
+              side.appendChild(el("p", null, nameIn(pair[1][1])));
+              court.appendChild(side);
+            });
+            card.appendChild(court);
+            grid.appendChild(card);
+          });
+          frag.appendChild(grid);
+        })(r);
+      }
+      return frag;
+    }
+
+    /* قائمة الأرشيف */
+    if (!state.archive.length){
+      frag.appendChild(emptyState("الأرشيف فاضي",
+        "بعد ما تخلص بطولة، احفظها في الأرشيف من صفحة الإدارة، وبتظهر هنا بتاريخها."));
+      return frag;
+    }
+    frag.appendChild(el("h2","sec","البطولات السابقة"));
+    frag.appendChild(el("p","hint","اضغط أي بطولة تشوف ترتيبها ومبارياتها."));
+    var stack = el("div","stack");
+    state.archive.forEach(function(t, idx){
+      var card = el("button","card");
+      card.type = "button";
+      card.style.cssText += "width:100%;text-align:right;cursor:pointer;display:flex;align-items:center;gap:12px";
+      var info = el("div", null);
+      info.style.flex = "1";
+      var d = el("div", null, fmtDate(t.date));
+      d.style.cssText = "font-family:var(--display);font-weight:600;font-size:14px;color:var(--chalk)";
+      info.appendChild(d);
+      info.appendChild(el("div","hint", t.size + " لاعب · الفائز: " + (t.winner || "—")));
+      info.querySelector(".hint").style.margin = "2px 0 0";
+      card.appendChild(info);
+      var chev = el("span", null, "‹");
+      chev.style.cssText = "color:var(--ball);font-size:22px";
+      card.appendChild(chev);
+      card.addEventListener("click", function(){ archiveOpen = idx; render(); window.scrollTo(0,0); });
+      stack.appendChild(card);
+
+      if (unlocked){
+        var del = el("button","clear","حذف هذه البطولة");
+        del.style.margin = "0";
+        arm(del, "أكيد؟ حذف نهائي", function(){
+          state.archive.splice(idx, 1);
+          queuePush(); render();
+        });
+        var wrap = el("div", null);
+        wrap.style.cssText = "display:flex;justify-content:flex-start";
+        wrap.appendChild(del);
+        stack.appendChild(wrap);
+      }
+    });
+    frag.appendChild(stack);
     return frag;
   }
 
@@ -890,9 +1051,35 @@
       frag.appendChild(gc);
     }
 
+    /* ---- عدد اللاعبين ---- */
+    frag.appendChild(el("h2","sec","عدد اللاعبين"));
+    var locked = state.schedule.length > 0;
+    frag.appendChild(el("p","hint", locked
+      ? "الجدول مسحوب. لتغيير العدد اسحب خلطاً جديداً من الأسفل."
+      : "اختر العدد، ثم اكتب الأسماء. الملاعب تتحدد تلقائياً: كل ٤ لاعبين ملعب."));
+    var seg = el("div","seg");
+    seg.style.maxWidth = "320px";
+    SIZES.forEach(function(n){
+      var b = el("button", null, String(n));
+      b.type = "button";
+      b.setAttribute("aria-pressed", String(n === state.size));
+      if (locked) b.disabled = true;
+      b.addEventListener("click", function(){
+        if (locked) return;
+        state.size = n;
+        state.players = blankPlayers(n);
+        state.guests = [];
+        queuePush();
+        render();
+      });
+      seg.appendChild(b);
+    });
+    frag.appendChild(seg);
+    frag.appendChild(el("p","hint mono", state.size + " لاعب · " + courtsCount() + " ملعب · " + roundsCount() + " جولة"));
+
     /* ---- اللاعبون ---- */
-    frag.appendChild(el("h2","sec","اللاعبون"));
-    frag.appendChild(el("p","hint","ثمانية أسماء. تقدر تعدّل أي اسم في أي وقت وبيتحدّث في كل الصفحات."));
+    frag.appendChild(el("h2","sec","الأسماء"));
+    frag.appendChild(el("p","hint", state.size + " أسماء. تقدر تعدّل أي اسم في أي وقت وبيتحدّث في كل الصفحات."));
     var grid = el("div","players");
     state.players.forEach(function(p, i){
       var f = el("div","pfield");
@@ -915,13 +1102,16 @@
     frag.appendChild(el("h2","sec","القرعة والجدول"));
     var c1 = el("div","card");
     c1.appendChild(el("div", null, state.schedule.length
-      ? "الجدول جاهز: ٧ جولات × ملعبين = ١٤ مباراة، وكل لاعب يلعب مع كل زميل مرة واحدة."
-      : "اسحب القرعة عشان يتولّد جدول أمريكانو كامل: ٧ جولات، وكل لاعب يشارك في كل جولة."));
+      ? ("الجدول جاهز: " + roundsCount() + " جولة × " + courtsCount() + " ملعب = " + state.schedule.length + " مباراة، وكل لاعب يزامل كل الباقين مرة.")
+      : ("اختر عدد اللاعبين، اكتب الأسماء، ثم اسحب القرعة. الملاعب تتحدد تلقائياً (كل ٤ لاعبين ملعب).")));
     var row = el("div","row");
     row.style.marginTop = "14px";
     var gen = el("button","btn primary", state.schedule.length ? "خلط جديد" : "اسحب القرعة");
     gen.id = "gen"; gen.disabled = !ready();
-    if (state.schedule.length) arm(gen, "أكيد؟ بتنمسح النتائج", function(){ buildSchedule(); queuePush(); go("admin"); });
+    var hasResults = state.schedule.some(function(m){ return read(m).done; });
+    if (state.schedule.length) arm(gen, hasResults ? "أكيد؟ احفظ في الأرشيف أول" : "أكيد؟ بتنمسح", function(){
+      buildSchedule(); queuePush(); go("admin");
+    });
     else gen.addEventListener("click", function(){ if (!ready()) return; buildSchedule(); queuePush(); go("admin"); });
     row.appendChild(gen);
     if (state.schedule.length){
@@ -933,14 +1123,16 @@
       row.appendChild(clr);
     }
     c1.appendChild(row);
-    if (!ready()) c1.appendChild(el("p","admin-note","اكتب الأسماء الثمانية كلها عشان تنفتح القرعة."));
+    if (state.schedule.length && hasResults)
+      c1.appendChild(el("p","admin-note","فيه نتائج غير مؤرشفة. احفظها في الأرشيف من الأسفل قبل الخلط الجديد إذا تبي ترجع لها."));
+    if (!ready()) c1.appendChild(el("p","admin-note","اكتب كل الأسماء (" + state.size + ") عشان تنفتح القرعة."));
     frag.appendChild(c1);
 
     /* ---- تسجيل النتائج ---- */
     if (state.schedule.length){
       frag.appendChild(el("h2","sec","تسجيل النتائج"));
       frag.appendChild(el("p","hint","اضغط النتيجة مباشرة: الخياران على اليمين للفريق اليمين، والخياران على اليسار للفريق اليسار. اضغط الخيار المحدَّد مرة ثانية عشان تمسحه."));
-      for (var r = 1; r <= 7; r++){
+      for (var r = 1; r <= roundsCount(); r++){
         (function(r){
           var ms = state.schedule.filter(function(m){ return m.round === r; });
           if (!ms.length) return;
@@ -955,6 +1147,38 @@
       }
     }
 
+    /* ---- الأرشيف ---- */
+    if (state.schedule.length){
+      frag.appendChild(el("h2","sec","الأرشيف"));
+      var ac = el("div","card");
+      ac.appendChild(el("div", null, "احفظ البطولة الحالية بتاريخها. تنحفظ نسخة كاملة (الترتيب والمباريات) تقدر ترجع لها من تبويب الأرشيف."));
+      var arow = el("div","row"); arow.style.marginTop = "14px";
+      var asave = el("button","btn primary","احفظ الحالية في الأرشيف");
+      var amsg = el("p","admin-note","");
+      asave.addEventListener("click", function(){
+        if (!state.schedule.some(function(m){ return read(m).done; })){
+          amsg.textContent = "ما فيه نتائج مسجّلة عشان تُحفظ."; return;
+        }
+        var snap = {
+          date: Date.now(),
+          size: state.size,
+          players: JSON.parse(JSON.stringify(state.players)),
+          schedule: JSON.parse(JSON.stringify(state.schedule))
+        };
+        var top = standings()[0];
+        snap.winner = top && top.pts > 0 ? top.name : "—";
+        state.archive.unshift(snap);
+        if (state.archive.length > 50) state.archive = state.archive.slice(0, 50);
+        queuePush();
+        amsg.textContent = "تم الحفظ في الأرشيف ✓";
+      });
+      arow.appendChild(asave);
+      ac.appendChild(arow);
+      ac.appendChild(amsg);
+      if (state.archive.length) ac.appendChild(el("p","admin-note", "في الأرشيف حالياً " + state.archive.length + " بطولة. تشوفها من تبويب الأرشيف فوق."));
+      frag.appendChild(ac);
+    }
+
     /* ---- إعادة الضبط ---- */
     frag.appendChild(el("h2","sec","إعادة الضبط"));
     var c2 = el("div","card");
@@ -963,7 +1187,7 @@
     var rst = el("button","btn danger","إعادة ضبط البطولة");
     rst.style.marginTop = "12px";
     arm(rst, "أكيد؟ يُمسح كل شيء", function(){
-      state.players = blankPlayers(); state.schedule = [];
+      state.players = blankPlayers(state.size); state.schedule = [];
       queuePush(); go("admin");
     });
     c2.appendChild(rst);
@@ -1028,7 +1252,11 @@
   /* ================= التنقل ================= */
   function render(){
     app.innerHTML = "";
-    app.appendChild(view === "matches" ? viewMatches() : view === "admin" ? viewAdmin() : viewStandings());
+    app.appendChild(
+      view === "matches" ? viewMatches()
+      : view === "admin" ? viewAdmin()
+      : view === "archive" ? viewArchive()
+      : viewStandings());
   }
   function syncNav(){
     document.querySelectorAll("nav button").forEach(function(b){
@@ -1036,7 +1264,7 @@
     });
     document.getElementById("adminkey").classList.toggle("live", view === "admin");
   }
-  function go(v){ view = v; syncNav(); render(); window.scrollTo(0, 0); }
+  function go(v){ if (v !== "archive") archiveOpen = -1; view = v; syncNav(); render(); window.scrollTo(0, 0); }
 
   document.querySelectorAll("nav button").forEach(function(b){
     b.addEventListener("click", function(){ go(b.dataset.view); });
@@ -1057,7 +1285,7 @@
   window.addEventListener("online", function(){ if (pending) push(); });
 
   /* ================= الإقلاع ================= */
-  state.players = blankPlayers();
+  state.players = blankPlayers(state.size);
 
   pull().then(function(d){
     if (!applyData(d)){
