@@ -259,7 +259,7 @@
     });
   }
 
-  var state = { size: 8, players: [], schedule: [], vault: null, guests: [], archive: [] };
+  var state = { size: 8, players: [], schedule: [], vault: null, guests: [], archive: [], drawnAt: 0 };
   var view = "standings";
   var unlocked = false;   // أدمن
   var role = "";          // "admin" أو "player"
@@ -395,6 +395,7 @@
     if (data.vault) state.vault = data.vault;
     state.guests = data.guests || [];
     state.archive = data.archive || [];
+    state.drawnAt = data.drawnAt || 0;
     if (data.size) state.size = data.size;
     if (!data.players || !data.players.length) return false;
     state.size = data.players.length;
@@ -497,6 +498,7 @@
       });
     });
     state.schedule = out;
+    state.drawnAt = Date.now();   // تاريخ الخلط — يُستخدم في الأرشيف
   }
   function read(m){
     if (!m.res) return { done:false };
@@ -1063,9 +1065,9 @@
       var b = el("button", null, String(n));
       b.type = "button";
       b.setAttribute("aria-pressed", String(n === state.size));
-      if (locked) b.disabled = true;
+      if (locked && n !== state.size) b.disabled = true;
       b.addEventListener("click", function(){
-        if (locked) return;
+        if (locked || n === state.size) return;
         state.size = n;
         state.players = blankPlayers(n);
         state.guests = [];
@@ -1160,7 +1162,7 @@
           amsg.textContent = "ما فيه نتائج مسجّلة عشان تُحفظ."; return;
         }
         var snap = {
-          date: Date.now(),
+          date: state.drawnAt || Date.now(),
           size: state.size,
           players: JSON.parse(JSON.stringify(state.players)),
           schedule: JSON.parse(JSON.stringify(state.schedule))
