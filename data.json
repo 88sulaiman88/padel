@@ -238,7 +238,15 @@
     "iv": "352bac3808a019b65ea57bc0",
     "ct": "U5LRlV+LXzU4wWhkYole28y2T3cNB5X2UOljiqH2xKhB+cdCvpG0j0ksRjgFfzhYIPpTmOidmNcDKoEOKTut39dNZxOw7wjteF3I8BgfPEam80AMX+50j5FLi/Gn2erhdSldb4Ule7DIpsF3sw=="
   },
-  "guests": [],
+  "guests": [
+    {
+      "v": 1,
+      "salt": "48f13f39dae7baf37484fb496bf7d786",
+      "iv": "dd18f8e089f9f8ce45fc32c1",
+      "ct": "K9wfAPfZV+eoAHX3NlMtwT2i0EFXQvgYoNWZop2X7rY0zQ3IoBN4hgZUg5B9maToqsoPbzeSZYOygiK7abhSfH0C/6qnsNaXzphnnHvlXFO0aE77PfmdksbW6vqSjXZdFLLd+npBAJHBlFbUPA==",
+      "pid": "*"
+    }
+  ],
   "archive": [
     {
       "date": 1786993200000,
