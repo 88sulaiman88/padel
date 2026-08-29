@@ -838,8 +838,10 @@
       btn.disabled = true; err.textContent = "جارٍ التحقق…";
       checkCode(code).then(function(ok){
         if (!ok) return tryGuests(code).then(function(gu){
-          if (gu){                                  // رمز لاعب
-            token = gu.token; role = "player"; mePid = gu.pid; tries = 0;
+          if (gu){                                  // رمز لاعب أو مُسجّل
+            token = gu.token; tries = 0;
+            if (gu.pid === "*"){ role = "scorer"; mePid = ""; }
+            else { role = "player"; mePid = gu.pid; }
             setSync("ok", "متصل");
             render();
             return "done";
@@ -914,8 +916,47 @@
     return frag;
   }
 
+  /* شاشة المُسجّل: كل المباريات قابلة للتسجيل، بدون قرعة/أسماء/أرشيف/إعدادات */
+  function viewScorer(){
+    var frag = document.createDocumentFragment();
+
+    var bar = el("div","adminbar");
+    var who = el("span","who", syncText || "مُسجّل النتائج");
+    who.id = "adminstatus";
+    bar.appendChild(who);
+    var lk = el("button","btn","اقفل الآن");
+    lk.addEventListener("click", function(){ role = ""; token = ""; go("standings"); });
+    bar.appendChild(lk);
+    frag.appendChild(bar);
+
+    if (!state.schedule.length){
+      frag.appendChild(emptyState("ما فيه جدول بعد", "انتظر لين يسحب الأدمن القرعة."));
+      return frag;
+    }
+
+    frag.appendChild(el("h2","sec","تسجيل النتائج"));
+    var doneN = state.schedule.filter(function(m){ return read(m).done; }).length;
+    frag.appendChild(el("p","hint","سجّل نتيجة أي مباراة. اكتملت " + doneN + " من " + state.schedule.length + "."));
+
+    for (var r = 1; r <= roundsCount(); r++){
+      (function(r){
+        var ms = state.schedule.filter(function(m){ return m.round === r; });
+        if (!ms.length) return;
+        var rh = el("div","round-head");
+        rh.appendChild(el("span","n", String(r)));
+        rh.appendChild(el("span","t","الجولة " + r));
+        frag.appendChild(rh);
+        var g2 = el("div","courts");
+        ms.forEach(function(m){ g2.appendChild(editCard(m)); });
+        frag.appendChild(g2);
+      })(r);
+    }
+    return frag;
+  }
+
   function viewAdmin(){
     if (role === "player") return viewMine();
+    if (role === "scorer") return viewScorer();
     if (!unlocked) return viewGate();
     var frag = document.createDocumentFragment();
 
@@ -986,11 +1027,11 @@
     }
     frag.appendChild(tc);
 
-    /* ---- رموز اللاعبين ---- */
+    /* ---- رموز الدخول ---- */
     if (token){
-      frag.appendChild(el("h2","sec","رموز اللاعبين"));
+      frag.appendChild(el("h2","sec","رموز الدخول"));
       var gc = el("div","card");
-      gc.appendChild(el("div", null, "أعطِ لاعباً رمزاً خاصاً يفتح له مبارياته فقط — بدون قرعة ولا إعدادات ولا إعادة ضبط."));
+      gc.appendChild(el("div", null, "أعطِ رمزاً لكل شخص. رمز اللاعب يفتح مبارياته فقط، ورمز المُسجّل يفتح كل المباريات لتسجيلها — لكن الاثنان بلا قرعة ولا أسماء ولا أرشيف ولا إعادة ضبط."));
 
       if (state.guests.length){
         var lst = el("div","stack");
@@ -998,11 +1039,16 @@
         state.guests.forEach(function(g, gi){
           var rowg = el("div","tokenfield");
           rowg.style.marginTop = "0";
-          var nm = el("div", null, nameOf(g.pid));
+          var isScorer = g.pid === "*";
+          var nm = el("div", null, isScorer ? "مُسجّل نتائج" : nameOf(g.pid));
           nm.style.flex = "1";
           nm.style.alignSelf = "center";
+          if (isScorer) nm.style.color = "var(--ball)";
           rowg.appendChild(nm);
-          var del = el("button","btn danger","احذف الرمز");
+          var tag = el("div", null, isScorer ? "كل المباريات" : "مبارياته فقط");
+          tag.style.cssText = "align-self:center;font-family:var(--mono);font-size:10.5px;color:var(--muted)";
+          rowg.appendChild(tag);
+          var del = el("button","btn danger","احذف");
           arm(del, "أكيد؟", function(){
             state.guests.splice(gi, 1);
             queuePush(); render();
@@ -1015,34 +1061,45 @@
 
       var gf = el("div","tokenfield");
       var sel = document.createElement("select");
-      sel.setAttribute("aria-label","اختر اللاعب");
+      sel.setAttribute("aria-label","اختر الدور");
       sel.style.cssText = "flex:1;min-width:150px;background:rgba(8,40,63,.5);border:1px solid var(--line-soft);border-radius:10px;color:var(--chalk);font-family:var(--body);font-size:14px;padding:10px 12px";
+      // خيار المُسجّل (مرة واحدة فقط)
+      if (!state.guests.some(function(g){ return g.pid === "*"; })){
+        var os = document.createElement("option");
+        os.value = "*"; os.textContent = "مُسجّل نتائج (كل المباريات)";
+        sel.appendChild(os);
+      }
+      // اللاعبون اللي ما لهم رمز بعد
       state.players.forEach(function(pl){
         if (state.guests.some(function(g){ return g.pid === pl.id; })) return;
         var o = document.createElement("option");
-        o.value = pl.id; o.textContent = pl.name || "—";
+        o.value = pl.id; o.textContent = (pl.name || "—") + " (مبارياته)";
         sel.appendChild(o);
       });
       gf.appendChild(sel);
       var gi2 = document.createElement("input");
-      gi2.type = "text"; gi2.setAttribute("dir","ltr"); gi2.placeholder = "رمزه (٤ خانات فأكثر)";
-      gi2.setAttribute("aria-label","رمز اللاعب");
+      gi2.type = "text"; gi2.setAttribute("dir","ltr"); gi2.placeholder = "الرمز (٤ خانات فأكثر)";
+      gi2.setAttribute("aria-label","الرمز");
       gf.appendChild(gi2);
       var gsave = el("button","btn primary","أنشئ الرمز");
       var gmsg = el("p","admin-note","");
       gsave.addEventListener("click", function(){
         var code = gi2.value.trim(), pid = sel.value;
-        if (!pid){ gmsg.textContent = "ما فيه لاعب متاح."; return; }
+        if (!pid){ gmsg.textContent = "ما فيه دور متاح."; return; }
         if (code.length < 4){ gmsg.textContent = "الرمز ٤ خانات على الأقل."; return; }
         gsave.disabled = true; gmsg.textContent = "جارٍ التشفير…";
         checkCode(code).then(function(isAdmin){
           if (isAdmin){ gsave.disabled = false; gmsg.textContent = "هذا رمزك أنت. اختر رمزاً مختلفاً."; return null; }
-          return seal(code, token).then(function(v){
-            v.pid = pid;
-            state.guests.push(v);
-            gi2.value = "";
-            queuePush();
-            render();
+          // منع تكرار الرمز نفسه لأكثر من شخص
+          return tryGuests(code).then(function(exists){
+            if (exists){ gsave.disabled = false; gmsg.textContent = "الرمز مستخدم لشخص آخر. اختر غيره."; return null; }
+            return seal(code, token).then(function(v){
+              v.pid = pid;
+              state.guests.push(v);
+              gi2.value = "";
+              queuePush();
+              render();
+            });
           });
         }).catch(function(){ gsave.disabled = false; gmsg.textContent = "تعذّر التشفير."; });
       });
