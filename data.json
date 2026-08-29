@@ -238,15 +238,7 @@
     "iv": "352bac3808a019b65ea57bc0",
     "ct": "U5LRlV+LXzU4wWhkYole28y2T3cNB5X2UOljiqH2xKhB+cdCvpG0j0ksRjgFfzhYIPpTmOidmNcDKoEOKTut39dNZxOw7wjteF3I8BgfPEam80AMX+50j5FLi/Gn2erhdSldb4Ule7DIpsF3sw=="
   },
-  "guests": [
-    {
-      "v": 1,
-      "salt": "4c8e8f236506ef698d02c7efedf97e79",
-      "iv": "4802ffa9bfac1888a460164e",
-      "ct": "1aPeYLIxfydvlEz/rj+/fNP6ivMAJgpb7HpRjs31bzHAty5U/mpposuldXmdpN+CjbWlyv+7x16u/dn14ZWJgkDv36m7wO51mqUQYsYLjLwC5rGgKNulb13I5xgGrDJpMY775SikeflrKxtoIA==",
-      "pid": "p6"
-    }
-  ],
+  "guests": [],
   "archive": [
     {
       "date": 1786993200000,
